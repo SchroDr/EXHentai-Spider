@@ -5,7 +5,6 @@ import pymysql
 import threading
 import time
 import random
-import json
 
 class Spider():
     def __init__(self):
@@ -48,31 +47,41 @@ class Spider():
 
         self.page_pool_status = True
 
-        self.info_pool_status = 10
+        self.info_pool_status = 4
 
         self.harvest = 0
 
-        #self.appKey = 'eUNiWlJ1WVllc2Q3TkF0UTpVQ2REWm1Vbk44bFhaQURm'
+        self.appKey = 'eUNiWlJ1WVllc2Q3TkF0UTpVQ2REWm1Vbk44bFhaQURm'
 
-        #self.ip_port = 'transfer.mogumiao.com:9001'
+        self.ip_port = 'transfer.mogumiao.com:9001'
 
-        #self.head['Proxy-Authorization'] = 'Basic ' + self.appKey
+        self.head['Proxy-Authorization'] = 'Basic ' + self.appKey
 
-        #self.proxy = {'http': 'http://' + self.ip_port, 'https://': self.ip_port}
-
-    def getHtml(self, url):
-        #html = self.session.get(url = url, headers = self.head, proxies = self.proxy, verify=False,allow_redirects=False)
-        html = self.session.get(url = url, headers = self.head, proxies = self.randomIp())
-        return html
+        self.proxy = {'http': 'http://' + self.ip_port, 'https://': self.ip_port}
 
     def getProxyIp(self):
-        url = 'http://piping.mogumiao.com/proxy/api/get_ip_al?appKey=04282f5d7e974715bfe5f39808f28207&count=4&expiryDate=0&format=1&newLine=2'
-        html = requests.get(url = url)
-        raw_ips = json.loads(html.text)['msg']
+        url = 'https://www.kuaidaili.com/free/inha/1/'
+        html = requests.get(url = url, headers = self.head, proxies = self.proxy, verify=False,allow_redirects=False)
+        soup = BeautifulSoup(html.text, 'html5lib')
+        raw_ips = soup.find_all(name = 'table', class_ = 'table table-bordered table-striped')[0].find_all(name = 'tbody')[0].find_all(name = 'tr')
+
         for raw_ip in raw_ips:
-            ip = raw_ip['ip'] + ':' + raw_ip['port']
+            raw = raw_ip.find_all(name = 'td')
+            ip = raw[0].text + ':' + raw[1].text
             self.proxy_ip_pool.append(ip)
-            print(ip)
+
+        for ip in self.proxy_ip_pool:
+            proxies = {
+                'http': 'https://27.159.137.35:48103',
+                'https': 'http://27.159.137.35:48103'
+            }
+            print(proxies)
+            try:
+                self.session.get(url = self.root_url, headers = self.head, proxies = self.proxy, verify=False,allow_redirects=False)
+            except:
+                print('Failed')
+            else:
+                print('Successful')
 
     def randomIp(self):
         return {
@@ -84,12 +93,13 @@ class Spider():
         
         print("Begin getPages()")
 
-        number_pool = list(range(begin_page, end_page + 1))
+        number_pool = range(begin_page, end_page + 1)
 
         for number in number_pool:
             try:
                 url = self.root_url + '?page=' + str(number)
-                html = self.getHtml(url)
+                #html = self.session.get(url = url, headers = self.head, proxies = self.proxy, verify=False,allow_redirects=False)
+                html = self.session.get(url = url, headers = self.head)
                 soup = BeautifulSoup(html.text, 'html5lib')
                 sources = soup.find_all(class_ = re.compile('gtr'))
 
@@ -112,8 +122,9 @@ class Spider():
         print('++++++++++++++++++++++++++++++++++++++++++++++++')
 
     def getInfo(self, href):
-
-        html = self.getHtml(href)
+        
+        #html = self.session.get(url = href, headers = self.head, proxies = self.proxy, verify=False,allow_redirects=False)
+        html = self.session.get(url = href, headers = self.head)
         soup = BeautifulSoup(html.text, 'html5lib')
 
         manga_id = re.findall(r"\d+/\w+", href)[0]
@@ -150,21 +161,21 @@ class Spider():
         parody_feature = []
 
         for feature in soup.find_all(name = 'a', id = re.compile('ta_')):
-            if(re.search('artist', feature['id'])):
+            if(feature.id == re.compile('artist')):
                 artist_feature.append(feature.text)
-            elif(re.search('group', feature['id'])):
+            elif(feature.id == re.compile('group')):
                 group_feature.append(feature.text)
-            elif(re.search('female', feature['id'])):
+            elif(feature.id == re.compile('female')):
                 female_feature.append(feature.text)
-            elif(re.search('male', feature['id'])):
+            elif(feature.id == re.compile('male')):
                 male_feature.append(feature.text)
-            elif(re.search('language', feature['id'])):
+            elif(feature.id == re.compile('language')):
                 language_feature.append(feature.text)
-            elif(re.search('character', feature['id'])):
+            elif(feature.id == re.compile('character')):
                 character_feature.append(feature.text)
-            elif(re.search('misc', feature['id'])):
+            elif(feature.id == re.compile('misc')):
                 misc_feature.append(feature.text)
-            elif(re.search('parody', feature['id'])):
+            elif(feature.id == re.compile('parody')):
                 parody_feature.append(feature.text)
     
         print('Manga_id: ' + manga_id)
@@ -250,8 +261,8 @@ class Spider():
         self.db.close()
 
     def multiBegin(self):
-        get_page_thread = threading.Thread(target = self.getPages, args = (100, 110))
-        get_info_threads = [threading.Thread(target = self.getInfoFromPool) for i in range(10)]
+        get_page_thread = threading.Thread(target = self.getPages, args = (75, 100))
+        get_info_threads = [threading.Thread(target = self.getInfoFromPool) for i in range(4)]
         save_info_thread = threading.Thread(target = self.saveInfoFromPool)
 
         get_page_thread.start()
@@ -283,7 +294,7 @@ class Spider():
 
         for manga_id in id_list:
             url = 'https://exhentai.org/g/' + manga_id
-            html = self.getHtml(url)
+            html = self.session.get(url = url, headers = self.head)
             soup = BeautifulSoup(html.text, 'html5lib')
             parent = soup.find_all(name = 'td', text = re.compile('Parent'))[0].next_sibling.text
             parent_href = re.findall(
@@ -295,8 +306,7 @@ class Spider():
 
 EXSpider = Spider()
 #EXSpider.begin()
-EXSpider.getProxyIp()
+#EXSpider.getProxyIp()
 EXSpider.multiBegin()
 #EXSpider.getTags()
-
 
