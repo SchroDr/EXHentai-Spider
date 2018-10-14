@@ -93,25 +93,28 @@ class Spider():
         
         print("Begin getPages()")
 
-        for number in range(begin_page, end_page + 1):
+        number_pool = range(begin_page, end_page + 1)
 
-            url = self.root_url + '?page=' + str(number)
-            html = self.session.get(url = url, headers = self.head, proxies = self.proxy, verify=False,allow_redirects=False)
-            soup = BeautifulSoup(html.text, 'html5lib')
-            sources = soup.find_all(class_ = re.compile('gtr'))
+        for number in number_pool:
+            try:
+                url = self.root_url + '?page=' + str(number)
+                #html = self.session.get(url = url, headers = self.head, proxies = self.proxy, verify=False,allow_redirects=False)
+                html = self.session.get(url = url, headers = self.head)
+                soup = BeautifulSoup(html.text, 'html5lib')
+                sources = soup.find_all(class_ = re.compile('gtr'))
 
-            for source in sources:
+                for source in sources:
+                    #kind = source.select('.itdc a img')[0]['alt']
+                    #time = source.find_all(name = 'td', class_ = 'itd')[0].text
+                    #name = source.select('.it5 a')[0].text
+                    href = source.select('.it5 a')[0]['href']
 
-                #kind = source.select('.itdc a img')[0]['alt']
-                #time = source.find_all(name = 'td', class_ = 'itd')[0].text
-                #name = source.select('.it5 a')[0].text
-                href = source.select('.it5 a')[0]['href']
+                    self.page_pool.append(href)
+            except requests.exceptions.ConnectionError:
+                print('ConnectionError')
+                number_pool.append(number)
 
-                #print('-------------------------------------')
-                #print('Href: ' + href)
-                #print('-------------------------------------')
 
-                self.page_pool.append(href)
 
         self.page_pool_status = False
         print('++++++++++++++++++++++++++++++++++++++++++++++++')
@@ -119,19 +122,22 @@ class Spider():
         print('++++++++++++++++++++++++++++++++++++++++++++++++')
 
     def getInfo(self, href):
-
-        html = self.session.get(url = href, headers = self.head, proxies = self.proxy, verify=False,allow_redirects=False)
+        
+        #html = self.session.get(url = href, headers = self.head, proxies = self.proxy, verify=False,allow_redirects=False)
+        html = self.session.get(url = href, headers = self.head)
         soup = BeautifulSoup(html.text, 'html5lib')
 
         manga_id = re.findall(r"\d+/\w+", href)[0]
+        manga_pure_id = re.findall(r"(\d+)/\w+", manga_id)[0]
         head = soup.find_all(name = 'h1', id = 'gn')[0].text
         subhead = soup.find_all(name = 'h1', id = 'gj')[0].text
         kind = soup.select('#gdc a img')[0]['alt']
         uploader = soup.select('#gdn a')[0].text
         time = soup.find_all(name = 'td', text = re.compile('Posted'))[0].next_sibling.text
-        #parent = re.findall(r"\d+/\w+", 
-        #                            soup.find_all(name = 'td', text = re.compile('Parent'))[0].next_sibling[href])[0] if soup.find_all(name = 'td', text = re.compile('Parent'))[0].next_sibling.text != 'None' else 'None'
         parent = soup.find_all(name = 'td', text = re.compile('Parent'))[0].next_sibling.text
+        parent_href = re.findall(
+                        r"\d+/\w+", soup.find_all(name = 'td', text = re.compile('Parent'))[0].next_sibling.find('a')['href']
+                        )[0] if parent != 'None' else 'None'
         visible = soup.find_all(name = 'td', text = re.compile('Visible'))[0].next_sibling.text
         language = soup.find_all(name = 'td', text = re.compile('Language'))[0].next_sibling.text
         file_size = re.findall(r"\d+\.?\d*",
@@ -144,43 +150,38 @@ class Spider():
         rating_count = soup.find_all(name = 'span', id = 'rating_count')[0].text
         avrage_rating = re.findall(r"\d+\.?\d*", 
                                     soup.find_all(name = 'td', id = 'rating_label')[0].text)[0]
-        features = ""
-        for feature in soup.find_all(name = 'a', id = re.compile('ta_')):
-            features += (feature.text + ';')
 
-        #group = soup.find_all(name = 'a', id = re.compile('ta_group'))[0].text if len(soup.find_all(name = 'a', id = re.compile('ta_group'))) != 0 else 'Null'
-        #artist = soup.find_all(name = 'a', id = re.compile('ta_artist'))[0].text if len(soup.find_all(name = 'a', id = re.compile('ta_group'))) != 0 else 'Null'
-        #male_features = ''
-        #if len(soup.find_all(name = 'a', id = re.compile('ta_male'))) != 0:
-        #    for feature in soup.find_all(name = 'a', id = re.compile('ta_male')):
-        #        male_features += (';' + feature.text)
-        #else:
-        #    male_features = 'Null'
-        #female_features = ''
-        #if len(soup.find_all(name = 'a', id = re.compile('ta_female'))) != 0:
-        #    for feature in soup.find_all(name = 'a', id = re.compile('ta_female')):
-        #        female_features += (';' + feature.text)
-        #else:
-        #    female_features = 'Null'
-        
+        artist_feature = []
+        group_feature = []
+        female_feature = []
+        male_feature = []
+        language_feature = []
+        character_feature = []
+        misc_feature = []
+        parody_feature = []
+
+        for feature in soup.find_all(name = 'a', id = re.compile('ta_')):
+            if(feature.id == re.compile('artist')):
+                artist_feature.append(feature.text)
+            elif(feature.id == re.compile('group')):
+                group_feature.append(feature.text)
+            elif(feature.id == re.compile('female')):
+                female_feature.append(feature.text)
+            elif(feature.id == re.compile('male')):
+                male_feature.append(feature.text)
+            elif(feature.id == re.compile('language')):
+                language_feature.append(feature.text)
+            elif(feature.id == re.compile('character')):
+                character_feature.append(feature.text)
+            elif(feature.id == re.compile('misc')):
+                misc_feature.append(feature.text)
+            elif(feature.id == re.compile('parody')):
+                parody_feature.append(feature.text)
+    
         print('Manga_id: ' + manga_id)
-        #print('Head: ' + head)
-        #print('Subhead: ' + subhead)
-        #print('Kind: ' + kind)
-        #print('Uploader: ' + uploader)
-        #print('Time: ' + time)
-        #print('Parent: ' + parent)
-        #print('Visible: ' + visible)
-        #print('Language: ' + language)
-        #print('File_size: ' + file_size)
-        #print('Length: ' + length)
-        #print('Favorited: ' + favorited)
-        #print('Rating_count: ' + rating_count)
-        #print('Average_rating: ' + avrage_rating)
-        #print('Features: ' + features)
-        #print('----------------------------------------------')
 
         self.info_pool.append({
+            'manga_pure_id': manga_pure_id,
             'manga_id': manga_id,
             'head': head.replace('\'', '\\\'').replace('\"', '\\\"'),
             'subhead': subhead.replace('\'', '\\\'').replace('\"', '\\\"'),
@@ -188,6 +189,7 @@ class Spider():
             'uploader': uploader,
             'time': time,
             'parent': parent,
+            'parent_href': parent_href,
             'visible': visible,
             'language': language,
             'file_size': float(file_size),
@@ -195,27 +197,29 @@ class Spider():
             'favorited': int(favorited),
             'rating_count': int(rating_count),
             'average_rating': float(avrage_rating),
-            'features': features
+            'artist_feature': ';'.join(artist_feature),
+            'group_feature': ';'.join(group_feature),
+            'female_feature': ';'.join(female_feature),
+            'male_feature': ';'.join(male_feature),
+            'language_feature': ';'.join(language_feature),
+            'character_feature': ';'.join(character_feature),
+            'misc_feature': ';'.join(misc_feature),
+            'parody_feature': ';'.join(parody_feature)
         })
 
     def saveInfo(self, info):
-        save_sql = """INSERT INTO exhentai_manga_info(
-                id, head, subhead, kind, uploader, time, parent, visible, 
-                language, file_size, length, favorited, rating_count, average_rating, features)
-                VALUES ("%s", "%s", "%s", "%s", 
-                        "%s", "%s", "%s", "%s", 
-                        "%s", "%f", "%d", "%d", 
-                        "%d", "%f", "%s")""" % \
-                (info['manga_id'], info['head'], info['subhead'], info['kind'], 
-                info['uploader'], info['time'], info['parent'], info['visible'], 
-                info['language'], info['file_size'], info['length'], info['favorited'], 
-                info['rating_count'], info['average_rating'], info['features'])
+        print(info)
+        keys = ', '.join(info.keys())
+        values = ', '.join(('"'+str(value)+'"') for value in info.values())
+        save_sql = """INSERT INTO exhentai_info({keys})
+                VALUES ({values})""".format(keys = keys, values = values)
 
         try:
             self.cursor.execute(save_sql)
             self.db.commit()
             self.harvest += 1
             print('Present Harvest: ' + str(self.harvest))
+        
         except pymysql.err.IntegrityError:
             print('----------------------')
             print('!!!!!!!!!!!!!!!!!!!!!!')
@@ -223,11 +227,12 @@ class Spider():
             print('----------------------')
             print('!!!!!!!!!!!!!!!!!!!!!!')
             self.db.rollback()
-
+        
     def getInfoFromPool(self):
         print('Begin getInfoFromPool()')
         while True:
-            print('Left to get: ' + str(len(self.page_pool)))
+            print('Page Pool: ' + str(len(self.page_pool)))
+            print('Info Pool: ' + str(len(self.info_pool)))
             try:
                 time.sleep(0.5)
                 self.getInfo(self.page_pool.pop(0))
@@ -241,7 +246,6 @@ class Spider():
         print('Begin saveInfoFromPool()')
         while True:
             try:
-                #self.saveInfo(self.getInfo(self.page_pool.pop(0)))
                 self.saveInfo(self.info_pool.pop(0))
             except:
                 if (self.info_pool_status == 0):
@@ -249,18 +253,10 @@ class Spider():
                     break
 
     def begin(self):
-        get_page_threading = threading.Thread(target = self.getPages, args = (1, 10000))
-        save_info_threading = threading.Thread(target = self.saveInfoFromPool)
-        #save_info_threads = [threading.Thread(target = self.saveInfoFromPool) for i in range(8)]
-        get_page_threading.start()
-        save_info_threading.start()
-        #for thread in save_info_threads:
-        #    thread.start()
+        self.getPages()
+        self.getInfo(self.page_pool.pop(0))
+        self.saveInfo(self.info_pool.pop(0))
 
-        get_page_threading.join()
-        save_info_threading.join()
-        #for thread in save_info_threads:
-        #    thread.join()
         print("Close Database")
         self.db.close()
 
@@ -282,6 +278,35 @@ class Spider():
         print("Close Database")
         self.db.close()
 
+    def getTags(self):
+        sql = 'SELECT id FROM exhentai_manga_info'
+
+        self.cursor.execute(sql)
+
+        id_list = []
+
+        tag_list = []
+
+        count = 0
+
+        for i in range(500):
+            id_list.append(self.cursor.fetchone()[0])
+
+        for manga_id in id_list:
+            url = 'https://exhentai.org/g/' + manga_id
+            html = self.session.get(url = url, headers = self.head)
+            soup = BeautifulSoup(html.text, 'html5lib')
+            parent = soup.find_all(name = 'td', text = re.compile('Parent'))[0].next_sibling.text
+            parent_href = re.findall(
+                        r"\d+/\w+", soup.find_all(name = 'td', text = re.compile('Parent'))[0].next_sibling.find('a')['href']
+                        )[0] if parent != 'None' else 'None'
+            
+            print(parent_href)
+
+
 EXSpider = Spider()
+#EXSpider.begin()
 #EXSpider.getProxyIp()
 EXSpider.multiBegin()
+#EXSpider.getTags()
+
