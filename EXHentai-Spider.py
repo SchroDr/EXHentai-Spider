@@ -63,7 +63,11 @@ class Spider():
         #self.proxy = {'http': 'http://' + self.ip_port, 'https://': self.ip_port}
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 
+=======
+"""
+>>>>>>> parent of 988f5a9... Update EXHentai-Spider.py
 =======
 """
 >>>>>>> parent of 988f5a9... Update EXHentai-Spider.py
@@ -111,9 +115,14 @@ class Spider():
             return self.getHtml(url, proxy_ip, count)
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 =======
 >>>>>>> parent of 988f5a9... Update EXHentai-Spider.py
+"""
+
+>>>>>>> parent of 988f5a9... Update EXHentai-Spider.py
+=======
 """
 
 >>>>>>> parent of 988f5a9... Update EXHentai-Spider.py
