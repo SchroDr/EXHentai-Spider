@@ -61,7 +61,11 @@ class Spider():
         #self.head['Proxy-Authorization'] = 'Basic ' + self.appKey
 
         #self.proxy = {'http': 'http://' + self.ip_port, 'https://': self.ip_port}
+<<<<<<< HEAD
 
+=======
+"""
+>>>>>>> parent of 988f5a9... Update EXHentai-Spider.py
     def getHtml(self, url, proxy_ip = None, count = 0):
         if(proxy_ip == None):
             proxy_ip = self.randomIp()
@@ -101,6 +105,11 @@ class Spider():
             print('ReadTimeout')
             time.sleep(2)
             return self.getHtml(url, proxy_ip, count)
+<<<<<<< HEAD
+=======
+"""
+
+>>>>>>> parent of 988f5a9... Update EXHentai-Spider.py
 
     def getProxyIp(self, count):
         url = 'http://piping.mogumiao.com/proxy/api/get_ip_al?appKey=04282f5d7e974715bfe5f39808f28207&count={count}&expiryDate=0&format=1&newLine=2'.format(count = str(count))
