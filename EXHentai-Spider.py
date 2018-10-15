@@ -54,54 +54,20 @@ class Spider():
 
         self.harvest = 0
 
-        #self.appKey = 'eUNiWlJ1WVllc2Q3TkF0UTpVQ2REWm1Vbk44bFhaQURm'
+        self.appKey = 'eUNiWlJ1WVllc2Q3TkF0UTpVQ2REWm1Vbk44bFhaQURm'
 
-        #self.ip_port = 'transfer.mogumiao.com:9001'
+        self.ip_port = 'transfer.mogumiao.com:9001'
 
-        #self.head['Proxy-Authorization'] = 'Basic ' + self.appKey
+        self.head['Proxy-Authorization'] = 'Basic ' + self.appKey
 
-        #self.proxy = {'http': 'http://' + self.ip_port, 'https://': self.ip_port}
-"""
-    def getHtml(self, url, proxy_ip = None, count = 0):
-        if(proxy_ip == None):
-            proxy_ip = self.randomIp()
-        if(count >= 5):
-            if((proxy_ip in self.proxy_ip_pool)):
-                self.proxy_ip_pool.remove(proxy_ip)
-                print('----------------------')
-                print('!!!!!!!!!!!!!!!!!!!!!!')
-                print('Remove one IP!!!!!!')
-                print('----------------------')
-                print('!!!!!!!!!!!!!!!!!!!!!!')
-            return self.getHtml(url)
-        proxies = {
-            'http': 'http://%s' % proxy_ip,
-            'https': 'http://%s' % proxy_ip
-        }
+        self.proxy = {'http': 'http://' + self.ip_port, 'https://': self.ip_port}
+
+
+    def getHtml(self, url):
         try:
-            #html = self.session.get(url = url, headers = self.head, proxies = self.proxy, verify=False,allow_redirects=False)
-            html = self.session.get(url = url, headers = self.head, proxies = proxies, timeout = 5)
-            return html
-        #except requests.exceptions.ProxyError:
-        #    if proxy_ip in self.proxy_ip_pool:
-        #        self.proxy_ip_pool.remove(proxy_ip) 
-        #    return self.getHtml(url)
-        except requests.exceptions.ConnectionError:
-            count += 1
-            print('ConnectionError')
-            time.sleep(2)
-            return self.getHtml(url, proxy_ip, count)
-        except requests.exceptions.SSLError:
-            count += 1
-            print('SSLError')
-            time.sleep(2)
-            return self.getHtml(url, proxy_ip, count)
-        except requests.exceptions.ReadTimeout:
-            count += 1
-            print('ReadTimeout')
-            time.sleep(2)
-            return self.getHtml(url, proxy_ip, count)
-"""
+            html = self.session.get(url = url, headers = self.head, proxies = self.proxy, verify=False,allow_redirects=False)
+        except Exception as e:
+            return self.getHtml(url)
 
 
     def getProxyIp(self, count):
