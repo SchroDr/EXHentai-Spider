@@ -14,6 +14,8 @@ class Spider():
 
         self.jar = requests.cookies.RequestsCookieJar()
 
+        self.session.keep_alive = False
+
         self.root_url = 'https://exhentai.org/'
 
         self.head = {
@@ -60,13 +62,48 @@ class Spider():
 
         #self.proxy = {'http': 'http://' + self.ip_port, 'https://': self.ip_port}
 
-    def getHtml(self, url):
-        #html = self.session.get(url = url, headers = self.head, proxies = self.proxy, verify=False,allow_redirects=False)
-        html = self.session.get(url = url, headers = self.head, proxies = self.randomIp())
-        return html
+    def getHtml(self, url, proxy_ip = None, count = 0):
+        if(proxy_ip == None):
+            proxy_ip = self.randomIp()
+        if(count >= 5):
+            if((proxy_ip in self.proxy_ip_pool)):
+                self.proxy_ip_pool.remove(proxy_ip)
+                print('----------------------')
+                print('!!!!!!!!!!!!!!!!!!!!!!')
+                print('Remove one IP!!!!!!')
+                print('----------------------')
+                print('!!!!!!!!!!!!!!!!!!!!!!')
+            return self.getHtml(url)
+        proxies = {
+            'http': 'http://%s' % proxy_ip,
+            'https': 'http://%s' % proxy_ip
+        }
+        try:
+            #html = self.session.get(url = url, headers = self.head, proxies = self.proxy, verify=False,allow_redirects=False)
+            html = self.session.get(url = url, headers = self.head, proxies = proxies, timeout = 5)
+            return html
+        #except requests.exceptions.ProxyError:
+        #    if proxy_ip in self.proxy_ip_pool:
+        #        self.proxy_ip_pool.remove(proxy_ip) 
+        #    return self.getHtml(url)
+        except requests.exceptions.ConnectionError:
+            count += 1
+            print('ConnectionError')
+            time.sleep(2)
+            return self.getHtml(url, proxy_ip, count)
+        except requests.exceptions.SSLError:
+            count += 1
+            print('SSLError')
+            time.sleep(2)
+            return self.getHtml(url, proxy_ip, count)
+        except requests.exceptions.ReadTimeout:
+            count += 1
+            print('ReadTimeout')
+            time.sleep(2)
+            return self.getHtml(url, proxy_ip, count)
 
-    def getProxyIp(self):
-        url = 'http://piping.mogumiao.com/proxy/api/get_ip_al?appKey=04282f5d7e974715bfe5f39808f28207&count=4&expiryDate=0&format=1&newLine=2'
+    def getProxyIp(self, count):
+        url = 'http://piping.mogumiao.com/proxy/api/get_ip_al?appKey=04282f5d7e974715bfe5f39808f28207&count={count}&expiryDate=0&format=1&newLine=2'.format(count = str(count))
         html = requests.get(url = url)
         raw_ips = json.loads(html.text)['msg']
         for raw_ip in raw_ips:
@@ -74,11 +111,35 @@ class Spider():
             self.proxy_ip_pool.append(ip)
             print(ip)
 
+
+    def checkProxyIp(self, ip):
+        if ip in self.proxy_ip_pool:
+            print('Check: ' + ip)
+            self.proxy_ip_pool.remove(ip)
+            proxies = {
+                'http': 'http://%s' % ip,
+                'https': 'http://%s' % ip
+            }
+            time.sleep(3)
+            status = False
+            for i in range(3):
+                try:
+                    html = self.session.get(url = self.root_url, headers = self.head, proxies = proxies, timeout = 5)
+                    status = html.status_code
+                except requests.exceptions.ReadTimeout:
+                    status = False
+                finally:
+                    if(status == 200):
+                        self.proxy_ip_pool.append(ip)
+                        print('IP:' + ip + ' is OK')
+                        break
+                time.sleep(3)
+
     def randomIp(self):
-        return {
-            'http': 'http://%s' % random.choice(self.proxy_ip_pool),
-            'https': 'http://%s' % random.choice(self.proxy_ip_pool)
-        }
+        print(len(self.proxy_ip_pool))
+        if(len(self.proxy_ip_pool) <= 10):
+            self.getProxyIp(5)
+        return random.choice(self.proxy_ip_pool)
         
     def getPages(self, begin_page = 0, end_page = 0):
         
@@ -87,22 +148,19 @@ class Spider():
         number_pool = list(range(begin_page, end_page + 1))
 
         for number in number_pool:
-            try:
-                url = self.root_url + '?page=' + str(number)
-                html = self.getHtml(url)
-                soup = BeautifulSoup(html.text, 'html5lib')
-                sources = soup.find_all(class_ = re.compile('gtr'))
+            time.sleep(2)
+            url = self.root_url + '?page=' + str(number)
+            html = self.getHtml(url)
+            soup = BeautifulSoup(html.text, 'html5lib')
+            sources = soup.find_all(class_ = re.compile('gtr'))
 
-                for source in sources:
-                    #kind = source.select('.itdc a img')[0]['alt']
-                    #time = source.find_all(name = 'td', class_ = 'itd')[0].text
-                    #name = source.select('.it5 a')[0].text
-                    href = source.select('.it5 a')[0]['href']
+            for source in sources:
+                #kind = source.select('.itdc a img')[0]['alt']
+                #time = source.find_all(name = 'td', class_ = 'itd')[0].text
+                #name = source.select('.it5 a')[0].text
+                href = source.select('.it5 a')[0]['href']
 
-                    self.page_pool.append(href)
-            except requests.exceptions.ConnectionError:
-                print('ConnectionError')
-                number_pool.append(number)
+                self.page_pool.append(href)
 
 
 
@@ -197,18 +255,20 @@ class Spider():
         })
 
     def saveInfo(self, info):
-        print(info)
+        #print(info)
         keys = ', '.join(info.keys())
         values = ', '.join(('"'+str(value)+'"') for value in info.values())
         save_sql = """INSERT INTO exhentai_info({keys})
-                VALUES ({values})""".format(keys = keys, values = values)
-
+                VALUES ({values}) ON DUPLICATE KEY UPDATE""".format(keys = keys, values = values)
+        update = ','.join([" {key} = %s".format(key = key) for key in info])
+        save_sql += update
+        #print(save_sql)
         try:
-            self.cursor.execute(save_sql)
+            self.cursor.execute(save_sql, tuple(info.values()))
             self.db.commit()
             self.harvest += 1
             print('Present Harvest: ' + str(self.harvest))
-        
+
         except pymysql.err.IntegrityError:
             print('----------------------')
             print('!!!!!!!!!!!!!!!!!!!!!!')
@@ -216,14 +276,21 @@ class Spider():
             print('----------------------')
             print('!!!!!!!!!!!!!!!!!!!!!!')
             self.db.rollback()
-        
+        except pymysql.err.DataError:
+            print('----------------------')
+            print('!!!!!!!!!!!!!!!!!!!!!!')
+            print('Too Long!!!!!!!!!!!!!!')
+            print('----------------------')
+            print('!!!!!!!!!!!!!!!!!!!!!!')
+            self.db.rollback()
+
     def getInfoFromPool(self):
         print('Begin getInfoFromPool()')
         while True:
             print('Page Pool: ' + str(len(self.page_pool)))
             print('Info Pool: ' + str(len(self.info_pool)))
             try:
-                time.sleep(0.5)
+                time.sleep(2)
                 self.getInfo(self.page_pool.pop(0))
             except IndexError:
                 if (self.page_pool_status == False):
@@ -236,7 +303,7 @@ class Spider():
         while True:
             try:
                 self.saveInfo(self.info_pool.pop(0))
-            except:
+            except IndexError:
                 if (self.info_pool_status == 0):
                     print("End!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
                     break
@@ -250,7 +317,7 @@ class Spider():
         self.db.close()
 
     def multiBegin(self):
-        get_page_thread = threading.Thread(target = self.getPages, args = (100, 110))
+        get_page_thread = threading.Thread(target = self.getPages, args = (100, 200))
         get_info_threads = [threading.Thread(target = self.getInfoFromPool) for i in range(10)]
         save_info_thread = threading.Thread(target = self.saveInfoFromPool)
 
@@ -295,8 +362,7 @@ class Spider():
 
 EXSpider = Spider()
 #EXSpider.begin()
-EXSpider.getProxyIp()
+#EXSpider.getProxyIp(20)
 EXSpider.multiBegin()
 #EXSpider.getTags()
-
 

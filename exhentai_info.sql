@@ -21,10 +21,10 @@ CREATE TABLE `exhentai_info` (
     `average_rating` float DEFAULT NULL,
     `artist_feature` varchar(500) DEFAULT NULL,
     `group_feature` varchar(500) DEFAULT NULL,
-    `female_feature` varchar(500) DEFAULT NULL,
-    `male_feature` varchar(500) DEFAULT NULL,
+    `female_feature` varchar(1000) DEFAULT NULL,
+    `male_feature` varchar(1000) DEFAULT NULL,
     `language_feature` varchar(500) DEFAULT NULL,
-    `character_feature` varchar(500) DEFAULT NULL,
+    `character_feature` varchar(1000) DEFAULT NULL,
     `misc_feature` varchar(500) DEFAULT NULL,
     `parody_feature` varchar(500) DEFAULT NULL,
     PRIMARY KEY (`manga_pure_id`)
